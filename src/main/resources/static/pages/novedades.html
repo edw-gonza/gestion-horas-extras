@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Novedades</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/menu.css">
+    <style>
+        .header-title {
+            background: linear-gradient(135deg, #fd7e14, #dc3545);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+        }
+        .card-shadow {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border: none;
+        }
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .table th {
+            position: sticky;
+            top: 0;
+            background: #dc3545;
+            color: white;
+            z-index: 10;
+        }
+        .badge-grupal {
+            background-color: #fd7e14;
+        }
+        .badge-individual {
+            background-color: #0d6efd;
+        }
+    </style>
+</head>
+<script src="/js/menu.js"></script>
+<body>
+
+<div class="container mt-4">
+    <!-- TÍTULO -->
+    <div class="header-title text-center">
+        <h1><i class="fas fa-gift"></i> Gestión de Novedades</h1>
+        <p class="mb-0">Registra festivos, permisos, cumpleaños y más</p>
+    </div>
+
+    <!-- BOTONES DE ACCIÓN -->
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="card card-shadow">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <button class="btn btn-success w-100" onclick="abrirModalGrupal('FESTIVO')">
+                                <i class="fas fa-calendar-day"></i> Festivo
+                            </button>
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-info w-100" onclick="abrirModalGrupal('VIERNES_FELIZ')">
+                                <i class="fas fa-glass-cheers"></i> Viernes Feliz
+                            </button>
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-primary w-100" onclick="abrirModalIndividual('UN_DIA')">
+                                <i class="fas fa-user"></i> Novedad 1 Día
+                            </button>
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-danger w-100" onclick="abrirModalIndividual('RANGO')">
+                                <i class="fas fa-calendar-range"></i> Novedad Rango
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABLA DE NOVEDADES -->
+    <div class="card card-shadow">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-list"></i> Novedades Activas</h5>
+            <button class="btn btn-outline-secondary btn-sm" onclick="cargarNovedades()">
+                <i class="fas fa-sync-alt"></i> Actualizar
+            </button>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-container">
+                <table class="table table-hover mb-0" id="tablaNovedades">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Colaborador</th>
+                            <th>Tipo</th>
+                            <th>Fecha Inicio</th>
+                            <th>Fecha Fin</th>
+                            <th>Descripción</th>
+                            <th>Ámbito</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpoTabla">
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">
+                                <i class="fas fa-spinner fa-spin"></i> Cargando novedades...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ======== MODAL PARA NOVEDAD GRUPAL ======== -->
+<div class="modal fade" id="modalGrupal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="modalGrupalTitle"><i class="fas fa-users"></i> Novedad Grupal</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formGrupal">
+                    <input type="hidden" id="tipoGrupal">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Fecha</label>
+                        <input type="date" class="form-control" id="fechaGrupal" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Descripción</label>
+                        <input type="text" class="form-control" id="descripcionGrupal" placeholder="Opcional">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-warning" onclick="guardarGrupal()">
+                    <i class="fas fa-save"></i> Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ======== MODAL PARA NOVEDAD INDIVIDUAL ======== -->
+<div class="modal fade" id="modalIndividual" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="modalIndividualTitle"><i class="fas fa-user"></i> Novedad Individual</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formIndividual">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Colaborador</label>
+                        <select class="form-select" id="colaboradorIndividual" required>
+                            <option value="">Seleccionar...</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Tipo de Novedad</label>
+                        <select class="form-select" id="tipoIndividual" required>
+                            <option value="PERMISO">Permiso</option>
+                            <option value="PERMISO_MEDICO">Permiso Médico</option>
+                            <option value="CUMPLEAÑOS">Cumpleaños</option>
+                            <option value="CALAMIDAD">Calamidad Doméstica</option>
+                            <option value="INCAPACIDAD">Incapacidad</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="divFechaInicio">
+                        <label class="form-label fw-bold">Fecha Inicio</label>
+                        <input type="date" class="form-control" id="fechaInicioIndividual" required>
+                    </div>
+                    <div class="mb-3" id="divFechaFin" style="display:none;">
+                        <label class="form-label fw-bold">Fecha Fin</label>
+                        <input type="date" class="form-control" id="fechaFinIndividual">
+                        <small class="text-muted">Obligatorio para Permiso, Permiso Médico, Calamidad e Incapacidad</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Descripción</label>
+                        <input type="text" class="form-control" id="descripcionIndividual" placeholder="Opcional">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="guardarIndividual()">
+                    <i class="fas fa-save"></i> Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/novedades.js"></script>
+
+</body>
+</html>

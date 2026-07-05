@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Asistencia</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/menu.css">
+    <style>
+        .header-title {
+            background: linear-gradient(135deg, #198754, #0d6efd);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+        }
+        .card-shadow {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border: none;
+        }
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .table th {
+            position: sticky;
+            top: 0;
+            background: #0d6efd;
+            color: white;
+            z-index: 10;
+        }
+        .fecha-seleccionada {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #0d6efd;
+        }
+        .checkbox-masivo {
+            transform: scale(1.3);
+            cursor: pointer;
+        }
+        .btn-marcar {
+            padding: 12px 30px;
+            font-size: 1.1rem;
+        }
+        .badge-registrado {
+            background-color: #198754;
+        }
+        .badge-pendiente {
+            background-color: #ffc107;
+            color: #000;
+        }
+        .btn-excepcion {
+            background-color: #fd7e14;
+            border-color: #fd7e14;
+            color: white;
+        }
+        .btn-excepcion:hover {
+            background-color: #e67300;
+            border-color: #e67300;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container mt-4" style="padding-top: 80px;">
+    <!-- TÍTULO -->
+    <div class="header-title text-center">
+        <h1><i class="fas fa-clock"></i> Registro de Asistencia</h1>
+        <p class="mb-0">Marcación masiva de asesores en un solo paso</p>
+    </div>
+
+    <!-- SELECCIÓN DE FECHA -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card card-shadow">
+                <div class="card-body">
+                    <label class="form-label fw-bold"><i class="fas fa-calendar-alt"></i> Fecha de registro</label>
+                    <input type="date" class="form-control form-control-lg" id="fechaRegistro">
+                    <small class="text-muted">Selecciona la fecha para registrar asistencia</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card card-shadow">
+                <div class="card-body text-center">
+                    <span class="fecha-seleccionada" id="fechaMostrada">-</span>
+                    <div>
+                        <span class="badge bg-secondary" id="diaSemana">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTROLES DE MARCACIÓN -->
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="card card-shadow">
+                <div class="card-body">
+                    <div class="row align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Hora Entrada</label>
+                            <input type="time" class="form-control" id="horaEntrada" value="08:00">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Hora Salida</label>
+                            <input type="time" class="form-control" id="horaSalida" value="17:00">
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <button class="btn btn-success btn-marcar" onclick="marcarAsistencia()">
+                                <i class="fas fa-check-circle"></i> Marcar Asistencia
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABLA DE COLABORADORES -->
+    <div class="card card-shadow">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-users"></i> Colaboradores</h5>
+            <div>
+                <a href="/pages/carga-excel.html" class="btn btn-outline-danger btn-sm me-2">
+                    <i class="fas fa-file-upload"></i> Carga Excel
+                </a>
+                <a href="/pages/reportes.html" class="btn btn-outline-success btn-sm me-2">
+                    <i class="fas fa-chart-bar"></i> Reportes
+                </a>
+                <a href="/pages/novedades.html" class="btn btn-outline-warning btn-sm me-2">
+                    <i class="fas fa-gift"></i> Novedades
+                </a>
+                <button class="btn btn-excepcion btn-sm me-2" onclick="abrirModalExcepcion()">
+                    <i class="fas fa-calendar-plus"></i> Registro Excepción
+                </button>
+                <button class="btn btn-outline-info btn-sm me-2" onclick="abrirDetalle()">
+                    <i class="fas fa-list-alt"></i> Ver Registros
+                </button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="cargarColaboradores()">
+                    <i class="fas fa-sync-alt"></i> Actualizar
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-container">
+                <table class="table table-hover mb-0" id="tablaAsistencia">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">
+                                <input type="checkbox" class="checkbox-masivo" id="seleccionarTodos" onchange="seleccionarTodos()">
+                            </th>
+                            <th>Código</th>
+                            <th>Nombre</th>
+                            <th>Rol</th>
+                            <th>Horario</th>
+                            <th>Sucursal</th>
+                            <th>Novedad</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpoTabla">
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">
+                                <i class="fas fa-spinner fa-spin"></i> Cargando colaboradores...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================= -->
+    <!-- DETALLE DE REGISTROS POR SEMANA -->
+    <!-- ============================================= -->
+    <div class="row mt-4" id="seccionDetalle" style="display:none;">
+        <div class="col-md-12">
+            <div class="card card-shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-list-alt"></i> Detalle de Registros - Semana</h5>
+                    <div>
+                        <button class="btn btn-outline-light btn-sm me-2" onclick="cargarDetalleSemana()">
+                            <i class="fas fa-sync-alt"></i> Actualizar
+                        </button>
+                        <button class="btn btn-outline-light btn-sm" onclick="ocultarDetalle()">
+                            <i class="fas fa-times"></i> Cerrar
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Colaborador</label>
+                            <select class="form-select" id="selectColaboradorDetalle" onchange="cargarDetalleSemana()">
+                                <option value="">Seleccionar colaborador...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Semana</label>
+                            <div class="row">
+                                <div class="col-md-5">
+                                    <input type="date" class="form-control" id="detalleFechaInicio">
+                                </div>
+                                <div class="col-md-2 text-center pt-2">
+                                    <span class="fw-bold">a</span>
+                                </div>
+                                <div class="col-md-5">
+                                    <input type="date" class="form-control" id="detalleFechaFin">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+                        <table class="table table-hover mb-0" id="tablaDetalle">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Hora Entrada</th>
+                                    <th>Hora Salida</th>
+                                    <th>Minutos</th>
+                                    <th>Novedad</th>
+                                    <th style="width: 150px;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cuerpoDetalle">
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">
+                                        <i class="fas fa-info-circle"></i> Selecciona un colaborador y una semana
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ======== MODAL PARA REGISTRO EXCEPCIÓN ======== -->
+<div class="modal fade" id="modalExcepcion" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title">
+                    <i class="fas fa-calendar-plus"></i> Registro Excepción - Colaboradores L-V
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">
+                    <i class="fas fa-info-circle"></i> 
+                    Selecciona colaboradores con horario LUNES_VIERNES para registrarlos en este día (sábado excepcional)
+                </p>
+                <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+                    <table class="table table-hover" id="tablaExcepcion">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">
+                                    <input type="checkbox" class="checkbox-masivo" onchange="seleccionarTodosExcepcion(this)">
+                                </th>
+                                <th>Código</th>
+                                <th>Nombre</th>
+                                <th>Sucursal</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cuerpoExcepcion">
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4">
+                                    <i class="fas fa-spinner fa-spin"></i> Cargando colaboradores L-V...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-warning" onclick="agregarExcepcion()">
+                    <i class="fas fa-user-plus"></i> Agregar a la grilla
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ======== MODAL PARA EDITAR REGISTRO ======== -->
+<div class="modal fade" id="modalEditarRegistro" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-edit"></i> Editar Registro</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formEditarRegistro">
+                    <input type="hidden" id="editRegistroId">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Fecha</label>
+                        <input type="date" class="form-control" id="editFecha" disabled>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Colaborador</label>
+                        <input type="text" class="form-control" id="editColaborador" disabled>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Hora Entrada</label>
+                            <input type="time" class="form-control" id="editHoraEntrada" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Hora Salida</label>
+                            <input type="time" class="form-control" id="editHoraSalida" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Minutos Trabajados</label>
+                        <input type="text" class="form-control" id="editMinutos" disabled>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="guardarEdicionRegistro()">
+                    <i class="fas fa-save"></i> Guardar Cambios
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/menu.js"></script>
+<script src="/js/registro-asistencia.js"></script>
+
+</body>
+</html>

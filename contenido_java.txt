@@ -1,0 +1,1175 @@
+﻿
+
+========== E:\ESPECIALIDAD\GestionHorasExtras\gestion-horas-extras\gestion-horas-extras\src\main\java\com\bancolombia\gestionhorasextras\GestionHorasExtrasApplication.java ==========
+package com.bancolombia.gestionhorasextras;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class GestionHorasExtrasApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(GestionHorasExtrasApplication.class, args);
+	}
+
+}
+
+
+
+========== E:\ESPECIALIDAD\GestionHorasExtras\gestion-horas-extras\gestion-horas-extras\src\main\java\com\bancolombia\gestionhorasextras\controllers\CalculoHorasController.java ==========
+package com.bancolombia.gestionhorasextras.controllers;
+
+import com.bancolombia.gestionhorasextras.services.CalculoHorasService;
+import com.bancolombia.gestionhorasextras.services.ColaboradorService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/calculo")
+@CrossOrigin(origins = "*")
+public class CalculoHorasController {
+
+    @Autowired
+    private CalculoHorasService calculoHorasService;
+
+    @Autowired
+    private ColaboradorService colaboradorService;
+
+    /**
+     * Calcula las horas extras causadas por un colaborador en una semana.
+     * Solo retorna horas extras POSITIVAS. Si es negativo o cero, retorna 0.
+     */
+    @GetMapping("/colaborador/{colaboradorId}/semana")
+    public ResponseEntity<Map<String, Object>> calcularHorasExtras(
+            @PathVariable Long colaboradorId,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate fechaInicio,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate fechaFin) {
+
+        var colaborador = colaboradorService.buscarPorId(colaboradorId);
+        if (colaborador.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        // Calcular horas extras (ya retorna 0 si es negativo)
+        int horasExtrasMinutos = calculoHorasService.calcularHorasExtras(colaboradorId, fechaInicio, fechaFin);
+
+        Map<String, Object> resultado = new HashMap<>();
+        resultado.put("colaboradorId", colaboradorId);
+        resultado.put("colaboradorNombre", colaborador.get().getNombreCompleto());
+        resultado.put("fechaInicio", fechaInicio);
+        resultado.put("fechaFin", fechaFin);
+        resultado.put("horasExtrasMinutos", horasExtrasMinutos);
+        resultado.put("horasExtrasHoras", String.format("%.2f", horasExtrasMinutos / 60.0));
+
+        return ResponseEntity.ok(resultado);
+    }
+}
+
+
+========== E:\ESPECIALIDAD\GestionHorasExtras\gestion-horas-extras\gestion-horas-extras\src\main\java\com\bancolombia\gestionhorasextras\controllers\ColaboradorController.java ==========
+package com.bancolombia.gestionhorasextras.controllers;
+
+import com.bancolombia.gestionhorasextras.models.Colaborador;
+import com.bancolombia.gestionhorasextras.services.ColaboradorService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Optional;
+
+@RestController
+@RequestMapping("/api/colaboradores")
+@CrossOrigin(origins = "*") // Permite que el frontend se comunique desde cualquier origen
+public class ColaboradorController {
+
+    @Autowired
+    private ColaboradorService colaboradorService;
+
+    // ============ LISTAR TODOS ============
+    @GetMapping
+    public ResponseEntity<List<Colaborador>> listarTodos() {
+        return ResponseEntity.ok(colaboradorService.listarTodos());
+    }
+
+    // ============ LISTAR ACTIVOS ============
+    @GetMapping("/activos")
+    public ResponseEntity<List<Colaborador>> listarActivos() {
+        return ResponseEntity.ok(colaboradorService.listarActivos());
+    }
+
+    // ============ BUSCAR POR ID ============
+    @GetMapping("/{id}")
+    public ResponseEntity<Colaborador> buscarPorId(@PathVariable Long id) {
+        Optional<Colaborador> colaborador = colaboradorService.buscarPorId(id);
+        return colaborador.map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    // ============ BUSCAR POR CÃ“DIGO DE VENTAS ============
+    @GetMapping("/codigo/{codigoVentas}")
+    public ResponseEntity<Colaborador> buscarPorCodigoVentas(@PathVariable String codigoVentas) {
+        Optional<Colaborador> colaborador = colaboradorService.buscarPorCodigoVentas(codigoVentas);
+        return colaborador.map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    // ============ BUSCAR POR SUCURSAL ============
+    @GetMapping("/sucursal/{sucursal}")
+    public ResponseEntity<List<Colaborador>> buscarPorSucursal(@PathVariable String sucursal) {
+        return ResponseEntity.ok(colaboradorService.buscarPorSucursal(sucursal));
+    }
+
+    // ============ BUSCAR POR HORARIO ============
+    @GetMapping("/horario/{horario}")
+    public ResponseEntity<List<Colaborador>> buscarPorHorario(@PathVariable String horario) {
+        return ResponseEntity.ok(colaboradorService.buscarPorHorario(horario));
+    }
+
+    // ============ BUSCAR ACTIVOS POR HORARIO ============
+    @GetMapping("/activos/horario/{horario}")
+    public ResponseEntity<List<Colaborador>> buscarActivosPorHorario(@PathVariable String horario) {
+        return ResponseEntity.ok(colaboradorService.buscarActivosPorHorario(horario));
+    }
+
+    // ============ CREAR NUEVO COLABORADOR ============
+    @PostMapping
+    public ResponseEntity<Colaborador> crear(@RequestBody Colaborador colaborador) {
+        try {
+            Colaborador nuevo = colaboradorService.guardar(colaborador);
+            return ResponseEntity.status(HttpStatus.CREATED).body(nuevo);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    // ============ ACTUALIZAR COLABORADOR ============
+    @PutMapping("/{id}")
+    public ResponseEntity<Colaborador> actualizar(@PathVariable Long id, @RequestBody Colaborador colaborador) {
+        try {
+            // Verificar que existe
+            Optional<Colaborador> existente = colaboradorService.buscarPorId(id);
+            if (existente.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+            
+            // Mantener el mismo ID
+            colaborador.setId(id);
+            Colaborador actualizado = colaboradorService.guardar(colaborador);
+            return ResponseEntity.ok(actualizado);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    // ============ ACTIVAR COLABORADOR ============
+    @PatchMapping("/{id}/activar")
+    public ResponseEntity<Colaborador> activar(@PathVariable Long id) {
+        try {
+            Colaborador colaborador = colaboradorService.activar(id);
+            return ResponseEntity.ok(colaborador);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    // ============ DESACTIVAR COLABORADOR ============
+    @PatchMapping("/{id}/desactivar")
+    public ResponseEntity<Colaborador> desactivar(@PathVariable Long id) {
+        try {
+            Colaborador colaborador = colaboradorService.desactivar(id);
+            return ResponseEntity.ok(colaborador);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    // ============ ELIMINAR COLABORADOR ============
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
+        try {
+            colaboradorService.eliminar(id);
+            return ResponseEntity.noContent().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    // ============ CALCULAR MINUTOS META ============
+    @GetMapping("/{id}/minutos-meta")
+    public ResponseEntity<Integer> calcularMinutosMeta(@PathVariable Long id) {
+        Optional<Colaborador> colaborador = colaboradorService.buscarPorId(id);
+        if (colaborador.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        int minutosMeta = colaboradorService.calcularMinutosMeta(colaborador.get());
+        return ResponseEntity.ok(minutosMeta);
+    }
+}
+
+
+========== E:\ESPECIALIDAD\GestionHorasExtras\gestion-horas-extras\gestion-horas-extras\src\main\java\com\bancolombia\gestionhorasextras\controllers\NovedadController.java ==========
+package com.bancolombia.gestionhorasextras.controllers;
+
+import com.bancolombia.gestionhorasextras.models.Novedad;
+import com.bancolombia.gestionhorasextras.services.NovedadService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/novedades")
+@CrossOrigin(origins = "*")
+public class NovedadController {
+
+    @Autowired
+    private NovedadService novedadService;
+
+    // =============================================
+    // CONSULTAS
+    // =============================================
+
+    @GetMapping
+    public ResponseEntity<List<Novedad>> listarTodos() {
+        return ResponseEntity.ok(novedadService.listarTodos());
+    }
+
+    @GetMapping("/colaborador/{colaboradorId}")
+    public ResponseEntity<List<Novedad>> listarPorColaborador(@PathVariable Long colaboradorId) {
+        return ResponseEntity.ok(novedadService.listarPorColaborador(colaboradorId));
+    }
+
+    @GetMapping("/fecha/{fecha}")
+    public ResponseEntity<List<Novedad>> listarActivasEnFecha(@PathVariable String fecha) {
+        LocalDate date = LocalDate.parse(fecha);
+        return ResponseEntity.ok(novedadService.listarActivasEnFecha(date));
+    }
+
+    // =============================================
+    // CREAR NOVEDAD GRUPAL - FESTIVO
+    // =============================================
+
+    @PostMapping("/festivo")
+    public ResponseEntity<List<Novedad>> crearFestivo(
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate fecha,
+            @RequestParam(required = false) String descripcion) {
+        String desc = descripcion != null ? descripcion : "DÃ­a festivo nacional";
+        return ResponseEntity.ok(novedadService.crearFestivo(fecha, desc));
+    }
+
+    // =============================================
+    // CREAR NOVEDAD GRUPAL - VIERNES FELIZ
+    // =============================================
+
+    @PostMapping("/viernes-feliz")
+    public ResponseEntity<List<Novedad>> crearViernesFeliz(
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate fecha,
+            @RequestParam(required = false) String descripcion) {
+        String desc = descripcion != null ? descripcion : "Viernes Feliz";
+        return ResponseEntity.ok(novedadService.crearViernesFeliz(fecha, desc));
+    }
+
+    // =============================================
+    // CREAR NOVEDAD INDIVIDUAL
+    // =============================================
+
+    @PostMapping("/permiso")
+    public ResponseEntity<Novedad> crearPermiso(
+            @RequestParam Long colaboradorId,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate fecha,
+            @RequestParam(required = false) String descripcion) {
+        String desc = descripcion != null ? descripcion : "Permiso autorizado";
+        return ResponseEntity.ok(novedadService.crearPermiso(colaboradorId, fecha, desc));
+    }
+
+    @PostMapping("/permiso-medico")
+    public ResponseEntity<Novedad> crearPermisoMedico(
+            @RequestParam Long colaboradorId,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate fecha,
+            @RequestParam(required = false) String descripcion) {
+        String desc = descripcion != null ? descripcion : "Permiso mÃ©dico";
+        return ResponseEntity.ok(novedadService.crearPermisoMedico(colaboradorId, fecha, desc));
+    }
+
+    @PostMapping("/cumpleanos")
+    public ResponseEntity<Novedad> crearCumpleanos(
+            @RequestParam Long colaboradorId,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate fecha,
+            @RequestParam(required = false) String descripcion) {
+        String desc = descripcion != null ? descripcion : "CumpleaÃ±os";
+        return ResponseEntity.ok(novedadService.crearCumpleanos(colaboradorId, fecha, desc));
+    }
+
+    @PostMapping("/calamidad")
+    public ResponseEntity<Novedad> crearCalamidad(
+            @RequestParam Long colaboradorId,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate fecha,
+            @RequestParam(required = false) String descripcion) {
+        String desc = descripcion != null ? descripcion : "Calamidad domÃ©stica";
+        return ResponseEntity.ok(novedadService.crearCalamidad(colaboradorId, fecha, desc));
+    }
+
+    @PostMapping("/incapacidad")
+    public ResponseEntity<Novedad> crearIncapacidad(
+            @RequestParam Long colaboradorId,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate fechaInicio,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate fechaFin,
+            @RequestParam(required = false) String descripcion) {
+        String desc = descripcion != null ? descripcion : "Incapacidad mÃ©dica";
+        return ResponseEntity.ok(novedadService.crearIncapacidad(colaboradorId, fechaInicio, fechaFin, desc));
+    }
+
+    // =============================================
+    // ELIMINAR NOVEDAD
+    // =============================================
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
+        novedadService.eliminar(id);
+        return ResponseEntity.noContent().build();
+    }
+}
+
+
+========== E:\ESPECIALIDAD\GestionHorasExtras\gestion-horas-extras\gestion-horas-extras\src\main\java\com\bancolombia\gestionhorasextras\controllers\RegistroAsistenciaController.java ==========
+package com.bancolombia.gestionhorasextras.controllers;
+
+import com.bancolombia.gestionhorasextras.models.Colaborador;
+import com.bancolombia.gestionhorasextras.models.RegistroAsistencia;
+import com.bancolombia.gestionhorasextras.services.ColaboradorService;
+import com.bancolombia.gestionhorasextras.services.RegistroAsistenciaService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/asistencia")
+@CrossOrigin(origins = "*")
+public class RegistroAsistenciaController {
+
+    @Autowired
+    private RegistroAsistenciaService registroAsistenciaService;
+
+    @Autowired
+    private ColaboradorService colaboradorService;
+
+    @GetMapping("/fecha/{fecha}")
+    public ResponseEntity<List<RegistroAsistencia>> listarPorFecha(
+            @PathVariable @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate fecha) {
+        return ResponseEntity.ok(registroAsistenciaService.listarPorFecha(fecha));
+    }
+
+    @GetMapping("/colaborador/{colaboradorId}/fecha/{fecha}")
+    public ResponseEntity<List<RegistroAsistencia>> listarPorColaboradorYFecha(
+            @PathVariable Long colaboradorId,
+            @PathVariable @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate fecha) {
+        return ResponseEntity.ok(registroAsistenciaService.listarPorColaboradorYFecha(colaboradorId, fecha));
+    }
+
+    @GetMapping("/colaborador/{colaboradorId}/semana/{fechaInicio}/{fechaFin}")
+    public ResponseEntity<List<RegistroAsistencia>> listarPorColaboradorYSemana(
+            @PathVariable Long colaboradorId,
+            @PathVariable @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate fechaInicio,
+            @PathVariable @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate fechaFin) {
+        return ResponseEntity.ok(registroAsistenciaService.listarPorColaboradorYSemana(colaboradorId, fechaInicio, fechaFin));
+    }
+
+    @PostMapping("/marcacion-masiva")
+    public ResponseEntity<List<RegistroAsistencia>> crearMarcacionMasiva(
+            @RequestParam List<Long> colaboradorIds,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate fecha,
+            @RequestParam @DateTimeFormat(pattern = "HH:mm") LocalTime horaEntrada,
+            @RequestParam @DateTimeFormat(pattern = "HH:mm") LocalTime horaSalida) {
+
+        List<RegistroAsistencia> registros = new ArrayList<>();
+
+        for (Long colaboradorId : colaboradorIds) {
+            // Verificar si ya existe registro para ese dÃ­a
+            if (registroAsistenciaService.existeRegistro(colaboradorId, fecha)) {
+                continue;
+            }
+
+            Colaborador colaborador = colaboradorService.buscarPorId(colaboradorId).orElse(null);
+            if (colaborador == null) continue;
+
+            RegistroAsistencia registro = new RegistroAsistencia();
+            registro.setColaborador(colaborador);
+            registro.setFecha(fecha);
+            registro.setHoraEntrada(horaEntrada);
+            registro.setHoraSalida(horaSalida);
+
+            registros.add(registro);
+        }
+
+        List<RegistroAsistencia> guardados = registroAsistenciaService.guardarTodos(registros);
+        return ResponseEntity.ok(guardados);
+    }
+
+    @PostMapping
+    public ResponseEntity<RegistroAsistencia> crearRegistro(@RequestBody RegistroAsistencia registro) {
+        return ResponseEntity.ok(registroAsistenciaService.guardar(registro));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
+        registroAsistenciaService.eliminar(id);
+        return ResponseEntity.noContent().build();
+    }
+}
+
+
+========== E:\ESPECIALIDAD\GestionHorasExtras\gestion-horas-extras\gestion-horas-extras\src\main\java\com\bancolombia\gestionhorasextras\models\Colaborador.java ==========
+package com.bancolombia.gestionhorasextras.models;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDate;
+
+@Entity
+@Table(name = "colaboradores")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Colaborador {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(unique = true, nullable = false, length = 50)
+    private String codigoVentas;        // CÃ³digo Ãºnico del asesor
+
+    @Column(nullable = false, length = 100)
+    private String nombreCompleto;
+
+    @Column(unique = true, nullable = false, length = 100)
+    private String correo;
+
+    @Column(nullable = false)
+    private LocalDate fechaNacimiento;
+
+    @Column(nullable = false, length = 20)
+    private String rol;                 // SERVICIO o ASESORIA
+
+    @Column(nullable = false)
+    private Integer horasSemanales;      // Ej: 42, 43, 48
+
+    @Column(nullable = false, length = 20)
+    private String horario;             // LUNES_VIERNES o LUNES_SABADO
+
+    @Column(nullable = false)
+    private String horaEntradaEstandar;  // "08:00"
+
+    @Column(nullable = false)
+    private String horaSalidaEstandar;   // "17:00"
+
+    @Column(nullable = false)
+    private Boolean activo = true;       // true = activo, false = inactivo
+
+    @Column(nullable = false)
+    private String sucursal;             // Nombre de la oficina
+}
+
+
+========== E:\ESPECIALIDAD\GestionHorasExtras\gestion-horas-extras\gestion-horas-extras\src\main\java\com\bancolombia\gestionhorasextras\models\Novedad.java ==========
+package com.bancolombia.gestionhorasextras.models;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDate;
+
+@Entity
+@Table(name = "novedades")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Novedad {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne
+    @JoinColumn(name = "colaborador_id", nullable = false)
+    private Colaborador colaborador;
+
+    @Column(nullable = false)
+    private String tipo;  // FESTIVO, PERMISO, PERMISO_MEDICO, CUMPLEAÃ‘OS, VIERNES_FELIZ, CALAMIDAD, INCAPACIDAD
+
+    @Column(nullable = false)
+    private LocalDate fechaInicio;
+
+    @Column(nullable = false)
+    private LocalDate fechaFin;
+
+    private String descripcion;
+
+    @Column(nullable = false)
+    private Boolean aplicaJornadaCompleta = true;  // true = dÃ­a completo, false = media jornada
+}
+
+
+========== E:\ESPECIALIDAD\GestionHorasExtras\gestion-horas-extras\gestion-horas-extras\src\main\java\com\bancolombia\gestionhorasextras\models\RegistroAsistencia.java ==========
+package com.bancolombia.gestionhorasextras.models;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDate;
+import java.time.LocalTime;
+
+@Entity
+@Table(name = "registros_asistencia")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class RegistroAsistencia {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne
+    @JoinColumn(name = "colaborador_id", nullable = false)
+    private Colaborador colaborador;
+
+    @Column(name = "fecha", nullable = false)
+    private LocalDate fecha;
+
+    @Column(name = "hora_entrada", nullable = false)
+    private LocalTime horaEntrada;
+
+    @Column(name = "hora_salida", nullable = false)
+    private LocalTime horaSalida;
+
+    @Column(name = "minutos_trabajados", nullable = false)
+    private Integer minutosTrabajados;
+
+    @Column(name = "novedad", length = 50)
+    private String novedad;
+}
+
+
+========== E:\ESPECIALIDAD\GestionHorasExtras\gestion-horas-extras\gestion-horas-extras\src\main\java\com\bancolombia\gestionhorasextras\repositories\ColaboradorRepository.java ==========
+package com.bancolombia.gestionhorasextras.repositories;
+
+import com.bancolombia.gestionhorasextras.models.Colaborador;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface ColaboradorRepository extends JpaRepository<Colaborador, Long> {
+
+    // Buscar por cÃ³digo de ventas (Ãºnico)
+    Optional<Colaborador> findByCodigoVentas(String codigoVentas);
+
+    // Buscar todos los colaboradores activos
+    List<Colaborador> findByActivoTrue();
+
+    // Buscar colaboradores por horario (para el filtro de sÃ¡bados)
+    List<Colaborador> findByHorario(String horario);
+
+    // Buscar colaboradores por sucursal
+    List<Colaborador> findBySucursal(String sucursal);
+
+    // Buscar colaboradores activos por horario
+    List<Colaborador> findByActivoTrueAndHorario(String horario);
+}
+
+
+========== E:\ESPECIALIDAD\GestionHorasExtras\gestion-horas-extras\gestion-horas-extras\src\main\java\com\bancolombia\gestionhorasextras\repositories\NovedadRepository.java ==========
+package com.bancolombia.gestionhorasextras.repositories;
+
+import com.bancolombia.gestionhorasextras.models.Novedad;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.time.LocalDate;
+import java.util.List;
+
+@Repository
+public interface NovedadRepository extends JpaRepository<Novedad, Long> {
+
+    // Buscar novedades por colaborador que estÃ©n activas en una fecha especÃ­fica
+    @Query("SELECT n FROM Novedad n WHERE n.colaborador.id = :colaboradorId AND :fecha BETWEEN n.fechaInicio AND n.fechaFin")
+    List<Novedad> findByColaboradorIdAndFechaBetween(
+            @Param("colaboradorId") Long colaboradorId,
+            @Param("fecha") LocalDate fecha);
+
+    // Buscar novedades por colaborador en un rango de fechas
+    @Query("SELECT n FROM Novedad n WHERE n.colaborador.id = :colaboradorId AND n.fechaInicio >= :fechaInicio AND n.fechaFin <= :fechaFin")
+    List<Novedad> findByColaboradorIdAndFechaRango(
+            @Param("colaboradorId") Long colaboradorId,
+            @Param("fechaInicio") LocalDate fechaInicio,
+            @Param("fechaFin") LocalDate fechaFin);
+
+    // Verificar si existe una novedad para un colaborador en una fecha especÃ­fica
+    @Query("SELECT COUNT(n) > 0 FROM Novedad n WHERE n.colaborador.id = :colaboradorId AND :fecha BETWEEN n.fechaInicio AND n.fechaFin")
+    boolean existsByColaboradorIdAndFecha(
+            @Param("colaboradorId") Long colaboradorId,
+            @Param("fecha") LocalDate fecha);
+
+    // Buscar todas las novedades activas en una fecha especÃ­fica
+    @Query("SELECT n FROM Novedad n WHERE :fecha BETWEEN n.fechaInicio AND n.fechaFin")
+    List<Novedad> findByFecha(
+            @Param("fecha") LocalDate fecha);
+}
+
+
+========== E:\ESPECIALIDAD\GestionHorasExtras\gestion-horas-extras\gestion-horas-extras\src\main\java\com\bancolombia\gestionhorasextras\repositories\RegistroAsistenciaRepository.java ==========
+package com.bancolombia.gestionhorasextras.repositories;
+
+import com.bancolombia.gestionhorasextras.models.RegistroAsistencia;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.time.LocalDate;
+import java.util.List;
+
+@Repository
+public interface RegistroAsistenciaRepository extends JpaRepository<RegistroAsistencia, Long> {
+
+    List<RegistroAsistencia> findByFecha(LocalDate fecha);
+
+    List<RegistroAsistencia> findByColaboradorIdAndFecha(Long colaboradorId, LocalDate fecha);
+
+    List<RegistroAsistencia> findByColaboradorIdAndFechaBetween(Long colaboradorId, LocalDate fechaInicio, LocalDate fechaFin);
+
+    boolean existsByColaboradorIdAndFecha(Long colaboradorId, LocalDate fecha);
+}
+
+
+========== E:\ESPECIALIDAD\GestionHorasExtras\gestion-horas-extras\gestion-horas-extras\src\main\java\com\bancolombia\gestionhorasextras\services\CalculoHorasService.java ==========
+package com.bancolombia.gestionhorasextras.services;
+
+import com.bancolombia.gestionhorasextras.models.Colaborador;
+import com.bancolombia.gestionhorasextras.models.Novedad;
+import com.bancolombia.gestionhorasextras.models.RegistroAsistencia;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.util.List;
+
+@Service
+public class CalculoHorasService {
+
+    @Autowired
+    private RegistroAsistenciaService registroAsistenciaService;
+
+    @Autowired
+    private NovedadService novedadService;
+
+    @Autowired
+    private ColaboradorService colaboradorService;
+
+    /**
+     * Calcula los minutos teÃ³ricos diarios de un colaborador
+     */
+    public int calcularMinutosTeoricosDiarios(Colaborador colaborador) {
+        int horasSemanales = colaborador.getHorasSemanales();
+        int diasSemana = colaborador.getHorario().equals("LUNES_VIERNES") ? 5 : 6;
+        double horasDiarias = (double) horasSemanales / diasSemana;
+        return (int) Math.round(horasDiarias * 60);
+    }
+
+    /**
+     * Calcula el total de minutos trabajados en una semana para un colaborador
+     * Aplica novedades automÃ¡ticamente para completar el horario teÃ³rico
+     */
+    public int calcularMinutosTrabajadosSemana(Long colaboradorId, LocalDate fechaInicio, LocalDate fechaFin) {
+        // Obtener el colaborador
+        Colaborador colaborador = colaboradorService.buscarPorId(colaboradorId).orElse(null);
+        if (colaborador == null) return 0;
+
+        // Obtener registros de asistencia de la semana
+        List<RegistroAsistencia> registros = registroAsistenciaService
+                .listarPorColaboradorYSemana(colaboradorId, fechaInicio, fechaFin);
+
+        // Obtener novedades del colaborador en la semana
+        List<Novedad> novedades = novedadService.listarPorColaboradorYFecha(colaboradorId, fechaInicio, fechaFin);
+
+        // Calcular minutos teÃ³ricos diarios
+        int minutosTeoricosDiarios = calcularMinutosTeoricosDiarios(colaborador);
+
+        int totalMinutos = 0;
+        String horario = colaborador.getHorario();
+
+        // Recorrer dÃ­a por dÃ­a de la semana
+        LocalDate fecha = fechaInicio;
+        while (!fecha.isAfter(fechaFin)) {
+            // Verificar si es dÃ­a laboral
+            boolean esDiaLaboral = esDiaLaboral(fecha, horario);
+            
+            if (esDiaLaboral) {
+                // Variables finales para usar en lambdas
+                final LocalDate fechaActual = fecha;
+                final int minutosTeoricos = minutosTeoricosDiarios;
+
+                // Buscar registro de asistencia para este dÃ­a
+                RegistroAsistencia registro = registros.stream()
+                        .filter(r -> r.getFecha().equals(fechaActual))
+                        .findFirst()
+                        .orElse(null);
+
+                // Buscar novedad para este dÃ­a
+                Novedad novedad = novedades.stream()
+                        .filter(n -> !fechaActual.isBefore(n.getFechaInicio()) && !fechaActual.isAfter(n.getFechaFin()))
+                        .findFirst()
+                        .orElse(null);
+
+                int minutosDia = 0;
+
+                if (registro != null) {
+                    // El colaborador trabajÃ³ este dÃ­a
+                    minutosDia = registro.getMinutosTrabajados();
+                    
+                    // Si tiene novedad, completar el horario teÃ³rico
+                    if (novedad != null) {
+                        minutosDia = Math.max(minutosDia, minutosTeoricos);
+                    }
+                } else if (novedad != null) {
+                    // No trabajÃ³ pero tiene novedad â†’ se completa el horario teÃ³rico
+                    minutosDia = minutosTeoricos;
+                }
+
+                totalMinutos += minutosDia;
+            }
+
+            fecha = fecha.plusDays(1);
+        }
+
+        return totalMinutos;
+    }
+
+    /**
+ * Calcula las horas extras de un colaborador en una semana
+ * Retorna 0 si el resultado es negativo (no se causan horas extras)
+ */
+public int calcularHorasExtras(Long colaboradorId, LocalDate fechaInicio, LocalDate fechaFin) {
+    Colaborador colaborador = colaboradorService.buscarPorId(colaboradorId).orElse(null);
+    if (colaborador == null) return 0;
+
+    // Calcular horas teÃ³ricas semanales en minutos
+    int horasTeoricasSemanales = colaborador.getHorasSemanales() * 60;
+
+    // Calcular minutos trabajados en la semana
+    int minutosTrabajados = calcularMinutosTrabajadosSemana(colaboradorId, fechaInicio, fechaFin);
+
+    // Horas extras = trabajado - teÃ³rico
+    int resultado = minutosTrabajados - horasTeoricasSemanales;
+
+    // Si es negativo, retornar 0 (no se causan horas extras)
+    return Math.max(resultado, 0);
+}
+
+    /**
+     * Verifica si un dÃ­a es laboral segÃºn el horario del colaborador
+     */
+    private boolean esDiaLaboral(LocalDate fecha, String horario) {
+        int diaSemana = fecha.getDayOfWeek().getValue(); // 1=Lunes, 7=Domingo
+        
+        if (horario.equals("LUNES_VIERNES")) {
+            return diaSemana >= 1 && diaSemana <= 5;
+        } else { // LUNES_SABADO
+            return diaSemana >= 1 && diaSemana <= 6;
+        }
+    }
+}
+
+
+========== E:\ESPECIALIDAD\GestionHorasExtras\gestion-horas-extras\gestion-horas-extras\src\main\java\com\bancolombia\gestionhorasextras\services\ColaboradorService.java ==========
+package com.bancolombia.gestionhorasextras.services;
+
+import com.bancolombia.gestionhorasextras.models.Colaborador;
+import com.bancolombia.gestionhorasextras.repositories.ColaboradorRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.Optional;
+
+@Service
+public class ColaboradorService {
+
+    @Autowired
+    private ColaboradorRepository colaboradorRepository;
+
+    // ============ CREAR / ACTUALIZAR ============
+
+    public Colaborador guardar(Colaborador colaborador) {
+        // Validar que no exista otro colaborador con el mismo cÃ³digo de ventas
+        if (colaborador.getId() == null) {
+            Optional<Colaborador> existente = colaboradorRepository.findByCodigoVentas(colaborador.getCodigoVentas());
+            if (existente.isPresent()) {
+                throw new RuntimeException("Ya existe un colaborador con el cÃ³digo de ventas: " + colaborador.getCodigoVentas());
+            }
+        }
+        return colaboradorRepository.save(colaborador);
+    }
+
+    // ============ CONSULTAR ============
+
+    public List<Colaborador> listarTodos() {
+        return colaboradorRepository.findAll();
+    }
+
+    public List<Colaborador> listarActivos() {
+        return colaboradorRepository.findByActivoTrue();
+    }
+
+    public Optional<Colaborador> buscarPorId(Long id) {
+        return colaboradorRepository.findById(id);
+    }
+
+    public Optional<Colaborador> buscarPorCodigoVentas(String codigoVentas) {
+        return colaboradorRepository.findByCodigoVentas(codigoVentas);
+    }
+
+    public List<Colaborador> buscarPorHorario(String horario) {
+        return colaboradorRepository.findByHorario(horario);
+    }
+
+    public List<Colaborador> buscarActivosPorHorario(String horario) {
+        return colaboradorRepository.findByActivoTrueAndHorario(horario);
+    }
+
+    public List<Colaborador> buscarPorSucursal(String sucursal) {
+        return colaboradorRepository.findBySucursal(sucursal);
+    }
+
+    // ============ ACTUALIZAR ESTADO ============
+
+    public Colaborador activar(Long id) {
+        Colaborador colaborador = colaboradorRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Colaborador no encontrado con ID: " + id));
+        colaborador.setActivo(true);
+        return colaboradorRepository.save(colaborador);
+    }
+
+    public Colaborador desactivar(Long id) {
+        Colaborador colaborador = colaboradorRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Colaborador no encontrado con ID: " + id));
+        colaborador.setActivo(false);
+        return colaboradorRepository.save(colaborador);
+    }
+
+    // ============ ELIMINAR ============
+
+    public void eliminar(Long id) {
+        if (!colaboradorRepository.existsById(id)) {
+            throw new RuntimeException("Colaborador no encontrado con ID: " + id);
+        }
+        colaboradorRepository.deleteById(id);
+    }
+
+    // ============ MÃ‰TODO ÃšTIL PARA EL NEGOCIO ============
+
+    /**
+     * Calcula los minutos meta semanales del colaborador
+     * Ej: si tiene 42 horas semanales, devuelve 2520 minutos
+     */
+    public int calcularMinutosMeta(Colaborador colaborador) {
+        return colaborador.getHorasSemanales() * 60;
+    }
+}
+
+
+========== E:\ESPECIALIDAD\GestionHorasExtras\gestion-horas-extras\gestion-horas-extras\src\main\java\com\bancolombia\gestionhorasextras\services\NovedadService.java ==========
+package com.bancolombia.gestionhorasextras.services;
+
+import com.bancolombia.gestionhorasextras.models.Colaborador;
+import com.bancolombia.gestionhorasextras.models.Novedad;
+import com.bancolombia.gestionhorasextras.repositories.NovedadRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+
+@Service
+public class NovedadService {
+
+    @Autowired
+    private NovedadRepository novedadRepository;
+
+    @Autowired
+    private ColaboradorService colaboradorService;
+
+    public Novedad guardar(Novedad novedad) {
+        return novedadRepository.save(novedad);
+    }
+
+    public List<Novedad> guardarTodos(List<Novedad> novedades) {
+        return novedadRepository.saveAll(novedades);
+    }
+
+    public List<Novedad> listarTodos() {
+        return novedadRepository.findAll();
+    }
+
+    public List<Novedad> listarPorColaborador(Long colaboradorId) {
+        return novedadRepository.findByColaboradorIdAndFechaBetween(colaboradorId, LocalDate.now());
+    }
+
+    public List<Novedad> listarActivasEnFecha(LocalDate fecha) {
+        return novedadRepository.findByFecha(fecha);
+    }
+
+    public boolean existeNovedad(Long colaboradorId, LocalDate fecha) {
+        return novedadRepository.existsByColaboradorIdAndFecha(colaboradorId, fecha);
+    }
+
+    public void eliminar(Long id) {
+        novedadRepository.deleteById(id);
+    }
+
+    /**
+     * Lista novedades de un colaborador en un rango de fechas
+     */
+    public List<Novedad> listarPorColaboradorYFecha(Long colaboradorId, LocalDate fechaInicio, LocalDate fechaFin) {
+        return novedadRepository.findByColaboradorIdAndFechaRango(colaboradorId, fechaInicio, fechaFin);
+    }
+
+    // =============================================
+    // MÃ‰TODO BASE PARA CREAR NOVEDADES
+    // =============================================
+
+    /**
+     * Crea novedades grupales (aplica a todos los colaboradores activos)
+     */
+    public List<Novedad> crearNovedadGrupal(String tipo, LocalDate fecha, String descripcion) {
+        List<Colaborador> colaboradores = colaboradorService.listarActivos();
+        List<Novedad> novedades = new ArrayList<>();
+
+        for (Colaborador colaborador : colaboradores) {
+            if (existeNovedad(colaborador.getId(), fecha)) {
+                continue;
+            }
+
+            Novedad novedad = new Novedad();
+            novedad.setColaborador(colaborador);
+            novedad.setTipo(tipo);
+            novedad.setFechaInicio(fecha);
+            novedad.setFechaFin(fecha);
+            novedad.setDescripcion(descripcion);
+            novedad.setAplicaJornadaCompleta(true);
+
+            novedades.add(novedad);
+        }
+
+        return guardarTodos(novedades);
+    }
+
+    /**
+     * Crea novedades individuales (para un colaborador especÃ­fico)
+     */
+    public Novedad crearNovedadIndividual(Long colaboradorId, String tipo, LocalDate fecha, String descripcion) {
+        Colaborador colaborador = colaboradorService.buscarPorId(colaboradorId)
+                .orElseThrow(() -> new RuntimeException("Colaborador no encontrado"));
+
+        if (existeNovedad(colaboradorId, fecha)) {
+            throw new RuntimeException("El colaborador ya tiene una novedad para esta fecha");
+        }
+
+        Novedad novedad = new Novedad();
+        novedad.setColaborador(colaborador);
+        novedad.setTipo(tipo);
+        novedad.setFechaInicio(fecha);
+        novedad.setFechaFin(fecha);
+        novedad.setDescripcion(descripcion);
+        novedad.setAplicaJornadaCompleta(true);
+
+        return guardar(novedad);
+    }
+
+    /**
+     * Crea incapacidad (puede ser por rango de fechas)
+     */
+    public Novedad crearIncapacidad(Long colaboradorId, LocalDate fechaInicio, LocalDate fechaFin, String descripcion) {
+        Colaborador colaborador = colaboradorService.buscarPorId(colaboradorId)
+                .orElseThrow(() -> new RuntimeException("Colaborador no encontrado"));
+
+        Novedad novedad = new Novedad();
+        novedad.setColaborador(colaborador);
+        novedad.setTipo("INCAPACIDAD");
+        novedad.setFechaInicio(fechaInicio);
+        novedad.setFechaFin(fechaFin);
+        novedad.setDescripcion(descripcion);
+        novedad.setAplicaJornadaCompleta(true);
+
+        return guardar(novedad);
+    }
+
+    /**
+     * Crea novedades individuales con rango de fechas
+     */
+    public Novedad crearNovedadRango(Long colaboradorId, String tipo, LocalDate fechaInicio, LocalDate fechaFin, String descripcion) {
+        Colaborador colaborador = colaboradorService.buscarPorId(colaboradorId)
+                .orElseThrow(() -> new RuntimeException("Colaborador no encontrado"));
+
+        Novedad novedad = new Novedad();
+        novedad.setColaborador(colaborador);
+        novedad.setTipo(tipo);
+        novedad.setFechaInicio(fechaInicio);
+        novedad.setFechaFin(fechaFin);
+        novedad.setDescripcion(descripcion);
+        novedad.setAplicaJornadaCompleta(true);
+
+        return guardar(novedad);
+    }
+
+    // =============================================
+    // MÃ‰TODOS ESPECÃFICOS POR TIPO
+    // =============================================
+
+    // GRUPALES
+    public List<Novedad> crearFestivo(LocalDate fecha, String descripcion) {
+        return crearNovedadGrupal("FESTIVO", fecha, descripcion);
+    }
+
+    public List<Novedad> crearViernesFeliz(LocalDate fecha, String descripcion) {
+        return crearNovedadGrupal("VIERNES_FELIZ", fecha, descripcion);
+    }
+
+    // INDIVIDUALES (un dÃ­a)
+    public Novedad crearPermiso(Long colaboradorId, LocalDate fecha, String descripcion) {
+        return crearNovedadIndividual(colaboradorId, "PERMISO", fecha, descripcion);
+    }
+
+    public Novedad crearPermisoMedico(Long colaboradorId, LocalDate fecha, String descripcion) {
+        return crearNovedadIndividual(colaboradorId, "PERMISO_MEDICO", fecha, descripcion);
+    }
+
+    public Novedad crearCumpleanos(Long colaboradorId, LocalDate fecha, String descripcion) {
+        return crearNovedadIndividual(colaboradorId, "CUMPLEAÃ‘OS", fecha, descripcion);
+    }
+
+    public Novedad crearCalamidad(Long colaboradorId, LocalDate fecha, String descripcion) {
+        return crearNovedadIndividual(colaboradorId, "CALAMIDAD", fecha, descripcion);
+    }
+
+    // INDIVIDUALES (rango)
+    public Novedad crearCalamidadRango(Long colaboradorId, LocalDate fechaInicio, LocalDate fechaFin, String descripcion) {
+        return crearNovedadRango(colaboradorId, "CALAMIDAD", fechaInicio, fechaFin, descripcion);
+    }
+
+    public Novedad crearIncapacidadRango(Long colaboradorId, LocalDate fechaInicio, LocalDate fechaFin, String descripcion) {
+        return crearNovedadRango(colaboradorId, "INCAPACIDAD", fechaInicio, fechaFin, descripcion);
+    }
+}
+
+
+========== E:\ESPECIALIDAD\GestionHorasExtras\gestion-horas-extras\gestion-horas-extras\src\main\java\com\bancolombia\gestionhorasextras\services\RegistroAsistenciaService.java ==========
+package com.bancolombia.gestionhorasextras.services;
+
+import com.bancolombia.gestionhorasextras.models.Colaborador;
+import com.bancolombia.gestionhorasextras.models.RegistroAsistencia;
+import com.bancolombia.gestionhorasextras.repositories.RegistroAsistenciaRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.List;
+
+@Service
+public class RegistroAsistenciaService {
+
+    @Autowired
+    private RegistroAsistenciaRepository registroAsistenciaRepository;
+
+    public RegistroAsistencia guardar(RegistroAsistencia registro) {
+        // Calcular minutos trabajados
+        if (registro.getHoraEntrada() != null && registro.getHoraSalida() != null) {
+            Duration duration = Duration.between(registro.getHoraEntrada(), registro.getHoraSalida());
+            registro.setMinutosTrabajados((int) duration.toMinutes());
+        } else {
+            registro.setMinutosTrabajados(0);
+        }
+        return registroAsistenciaRepository.save(registro);
+    }
+
+    public List<RegistroAsistencia> listarPorFecha(LocalDate fecha) {
+        return registroAsistenciaRepository.findByFecha(fecha);
+    }
+
+    public List<RegistroAsistencia> listarPorColaboradorYFecha(Long colaboradorId, LocalDate fecha) {
+        return registroAsistenciaRepository.findByColaboradorIdAndFecha(colaboradorId, fecha);
+    }
+
+    public List<RegistroAsistencia> listarPorColaboradorYSemana(Long colaboradorId, LocalDate fechaInicio, LocalDate fechaFin) {
+        return registroAsistenciaRepository.findByColaboradorIdAndFechaBetween(colaboradorId, fechaInicio, fechaFin);
+    }
+
+    public boolean existeRegistro(Long colaboradorId, LocalDate fecha) {
+        return registroAsistenciaRepository.existsByColaboradorIdAndFecha(colaboradorId, fecha);
+    }
+
+    public void eliminar(Long id) {
+        registroAsistenciaRepository.deleteById(id);
+    }
+
+    public List<RegistroAsistencia> guardarTodos(List<RegistroAsistencia> registros) {
+        // Calcular minutos trabajados para cada registro antes de guardar
+        for (RegistroAsistencia registro : registros) {
+            if (registro.getHoraEntrada() != null && registro.getHoraSalida() != null) {
+                Duration duration = Duration.between(registro.getHoraEntrada(), registro.getHoraSalida());
+                registro.setMinutosTrabajados((int) duration.toMinutes());
+            } else {
+                registro.setMinutosTrabajados(0);
+            }
+        }
+        return registroAsistenciaRepository.saveAll(registros);
+    }
+}
+
+
+========== E:\ESPECIALIDAD\GestionHorasExtras\gestion-horas-extras\gestion-horas-extras\src\test\java\com\bancolombia\gestionhorasextras\GestionHorasExtrasApplicationTests.java ==========
+package com.bancolombia.gestionhorasextras;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+
+@SpringBootTest
+class GestionHorasExtrasApplicationTests {
+
+	@Test
+	void contextLoads() {
+	}
+
+}
+

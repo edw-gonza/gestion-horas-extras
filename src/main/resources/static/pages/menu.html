@@ -1,0 +1,76 @@
+<!-- MENÚ DE NAVEGACIÓN GLOBAL -->
+<nav class="menu-principal">
+    <div class="container">
+        <a href="/pages/registro-asistencia.html" class="logo">
+            <i class="fas fa-clock"></i> Bancolombia
+        </a>
+        
+        <button class="menu-toggle" onclick="toggleMenu()">
+            <i class="fas fa-bars"></i>
+        </button>
+        
+        <ul class="menu-links" id="menuLinks">
+            <li>
+                <a href="/pages/registro-asistencia.html" id="menu-asistencia">
+                    <i class="fas fa-clock"></i> Asistencia
+                </a>
+            </li>
+            <li>
+                <a href="/pages/colaboradores.html" id="menu-colaboradores">
+                    <i class="fas fa-users"></i> Colaboradores
+                </a>
+            </li>
+            <li>
+                <a href="/pages/novedades.html" id="menu-novedades">
+                    <i class="fas fa-gift"></i> Novedades
+                </a>
+            </li>
+            <li>
+                <a href="/pages/reportes.html" id="menu-reportes">
+                    <i class="fas fa-chart-bar"></i> Reportes
+                </a>
+            </li>
+            <li>
+                <a href="/pages/carga-excel.html" id="menu-carga">
+                    <i class="fas fa-file-upload"></i> Carga Excel
+                </a>
+            </li>
+        </ul>
+    </div>
+</nav>
+
+<script>
+    // Función para alternar el menú en móviles
+    function toggleMenu() {
+        const menu = document.getElementById('menuLinks');
+        menu.classList.toggle('open');
+    }
+
+    // Función para marcar el enlace activo según la página actual
+    function marcarMenuActivo() {
+        const path = window.location.pathname;
+        const menuItems = {
+            '/pages/registro-asistencia.html': 'menu-asistencia',
+            '/pages/colaboradores.html': 'menu-colaboradores',
+            '/pages/novedades.html': 'menu-novedades',
+            '/pages/reportes.html': 'menu-reportes',
+            '/pages/carga-excel.html': 'menu-carga'
+        };
+
+        for (const [pagina, id] of Object.entries(menuItems)) {
+            const elemento = document.getElementById(id);
+            if (elemento) {
+                if (path.includes(pagina)) {
+                    elemento.classList.add('active');
+                } else {
+                    elemento.classList.remove('active');
+                }
+            }
+        }
+    }
+
+    // Ejecutar al cargar la página
+    document.addEventListener('DOMContentLoaded', function() {
+        marcarMenuActivo();
+    });
+</script>

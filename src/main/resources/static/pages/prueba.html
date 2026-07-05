@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Prueba API</title>
+</head>
+<body>
+    <h1>Colaboradores</h1>
+    <div id="resultado">Cargando...</div>
+
+    <script>
+        fetch('http://localhost:8080/api/colaboradores')
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('resultado').innerHTML = 
+                    '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            })
+            .catch(err => {
+                document.getElementById('resultado').innerHTML = 
+                    'Error: ' + err.message;
+            });
+    </script>
+</body>
+</html>

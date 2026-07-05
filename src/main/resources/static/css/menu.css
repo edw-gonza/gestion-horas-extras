@@ -1,0 +1,152 @@
+/* =============================================
+   MENÚ DE NAVEGACIÓN GLOBAL
+   ============================================= */
+
+.menu-principal {
+    background: linear-gradient(135deg, #0d6efd, #0a58ca);
+    padding: 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.menu-principal .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 15px;
+}
+
+.menu-principal .logo {
+    color: white;
+    font-weight: bold;
+    font-size: 1.2rem;
+    padding: 12px 0;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.menu-principal .logo:hover {
+    color: #cfe2ff;
+}
+
+.menu-principal .logo i {
+    font-size: 1.5rem;
+}
+
+/* Botón hamburguesa (visible en móviles) */
+.menu-toggle {
+    display: none;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.8rem;
+    cursor: pointer;
+    padding: 8px 12px;
+}
+
+.menu-toggle:hover {
+    color: #cfe2ff;
+}
+
+/* Lista de navegación */
+.menu-links {
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    gap: 5px;
+    align-items: center;
+}
+
+.menu-links li {
+    margin: 0;
+}
+
+.menu-links li a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255,255,255,0.8);
+    text-decoration: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+}
+
+.menu-links li a i {
+    font-size: 1rem;
+}
+
+.menu-links li a:hover {
+    background: rgba(255,255,255,0.15);
+    color: white;
+}
+
+.menu-links li a.active {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    font-weight: 500;
+}
+
+/* Indicador de página activa */
+.menu-links li a.active::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 3px;
+    background: white;
+    border-radius: 3px;
+}
+
+.menu-links li a {
+    position: relative;
+}
+
+/* Responsive: versión móvil */
+@media (max-width: 768px) {
+    .menu-toggle {
+        display: block;
+    }
+
+    .menu-links {
+        display: none;
+        flex-direction: column;
+        width: 100%;
+        background: #0a58ca;
+        padding: 10px 0;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    .menu-links.open {
+        display: flex;
+    }
+
+    .menu-links li {
+        width: 100%;
+    }
+
+    .menu-links li a {
+        padding: 12px 20px;
+        border-radius: 0;
+        width: 100%;
+    }
+
+    .menu-links li a:hover {
+        background: rgba(255,255,255,0.1);
+    }
+
+    .menu-principal .container {
+        flex-wrap: wrap;
+    }
+}
