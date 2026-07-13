@@ -1,9 +1,25 @@
-# Fase 1: Construccion
-FROM maven:3.8.5-openjdk-17 AS build
-COPY . .
+FROM maven:3.9.9-eclipse-temurin-21-alpine AS build
+
+WORKDIR /app
+
+# Copiar el pom.xml y descargar dependencias primero (mejor para caché)
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
+
+# Copiar el código fuente y compilar
+COPY src ./src
 RUN mvn clean package -DskipTests
-# Fase 2: Ejecucion
-FROM eclipse-temurin:17-jre-alpine
-COPY --from=build /target/*.jar app.jar
+
+# Imagen final más ligera
+FROM eclipse-temurin:21-jre-alpine
+
+WORKDIR /app
+
+# Copiar el JAR desde la fase de construcción
+COPY --from=build /app/target/*.jar app.jar
+
+# Puerto que usará la aplicación
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "/app.jar"]
+
+# Comando para iniciar la aplicación
+ENTRYPOINT ["java", "-jar", "app.jar"]
