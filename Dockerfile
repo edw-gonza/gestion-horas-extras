@@ -2,8 +2,11 @@ FROM eclipse-temurin:21-jdk AS build
 
 WORKDIR /app
 
+# Copiar los archivos de Maven wrapper y darles permisos de ejecución
 COPY mvnw .
 COPY .mvn .mvn
+RUN chmod +x mvnw
+
 COPY pom.xml .
 COPY src src
 
