@@ -15,7 +15,7 @@ FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
-# Copiar el JAR desde la fase de construcción
+# Copiar el JAR (usa cualquier nombre que tenga .jar en target)
 COPY --from=build /app/target/*.jar app.jar
 
 # Puerto que usará la aplicación
