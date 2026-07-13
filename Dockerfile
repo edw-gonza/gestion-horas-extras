@@ -1,19 +1,19 @@
-FROM maven:3.9.9-eclipse-temurin-21-alpine AS build
+FROM eclipse-temurin:21-jdk AS build
 
 WORKDIR /app
 
+COPY mvnw .
+COPY .mvn .mvn
 COPY pom.xml .
-RUN mvn dependency:go-offline -B
+COPY src src
 
-COPY src ./src
-RUN mvn clean package -DskipTests
+RUN ./mvnw clean package -DskipTests
 
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:21-jre
 
 WORKDIR /app
 
-# El JAR ahora se llama app.jar gracias al pom.xml
-COPY --from=build /app/target/app.jar app.jar
+COPY --from=build /app/target/*.jar app.jar
 
 EXPOSE 8080
 
